@@ -5,13 +5,11 @@
 #include <XnCppWrapper.h>
 
 #include <iostream>
+#include <string>
 
 #include <math.h>
 
 using namespace std;
-
-#define OUTPUT_BUFFER_SIZE 1024*16
-char tmp[OUTPUT_BUFFER_SIZE];
 
 int userID;
 float jointCoords[3];
@@ -41,7 +39,7 @@ XnChar g_strPose[20] = "";
 
 //gesture callbacks
 void XN_CALLBACK_TYPE Gesture_Recognized(xn::GestureGenerator& generator, const XnChar* strGesture, const XnPoint3D* pIDPosition, const XnPoint3D* pEndPosition, void* pCookie) {
-	printf("{'gesture':{'type':'%s'}}\n", strGesture);
+	printf("{\"gesture\":{\"type\":\"%s\"}}\n", strGesture);
 	gestureGenerator.RemoveGesture(strGesture);
 	handsGenerator.StartTracking(*pEndPosition);
 }
@@ -51,15 +49,15 @@ void XN_CALLBACK_TYPE Gesture_Process(xn::GestureGenerator& generator, const XnC
 
 //hand callbacks new_hand, update_hand, lost_hand
 void XN_CALLBACK_TYPE new_hand(xn::HandsGenerator &generator, XnUserID nId, const XnPoint3D *pPosition, XnFloat fTime, void *pCookie) {
-//	printf("{'found_hand':{'userid':%d,'x':%.3f,'y':%.3f,'z':%.3f}}\n", nId, pPosition->X, pPosition->Y, pPosition->Z);
+//	printf("{'found_hand\":{\"userid\":%d,'x':%.3f,'y':%.3f,'z':%.3f}}\n", nId, pPosition->X, pPosition->Y, pPosition->Z);
 }
 void XN_CALLBACK_TYPE lost_hand(xn::HandsGenerator &generator, XnUserID nId, XnFloat fTime, void *pCookie) {
-	printf("{'lost_hand':{'userid':%d}}\n", nId);
+	printf("{\"lost_hand\":{\"userid\":%d}}\n", nId);
 	gestureGenerator.AddGesture(GESTURE_TO_USE, NULL);
 }
 
 void XN_CALLBACK_TYPE update_hand(xn::HandsGenerator &generator, XnUserID nId, const XnPoint3D *pPosition, XnFloat fTime, void *pCookie) {
-//	printf("{'update_hand':{'userid':%d,'x':%.3f,'y':%.3f,'z':%.3f}}\n", nId, pPosition->X, pPosition->Y, pPosition->Z);
+//	printf("{'update_hand\":{\"userid\":%d,'x':%.3f,'y':%.3f,'z':%.3f}}\n", nId, pPosition->X, pPosition->Y, pPosition->Z);
 	haveHand = true;
 	handCoords[0] = pPosition->X;
 	handCoords[1] = pPosition->Y;
@@ -68,7 +66,7 @@ void XN_CALLBACK_TYPE update_hand(xn::HandsGenerator &generator, XnUserID nId, c
 
 // Callback: New user was detected
 void XN_CALLBACK_TYPE new_user(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
-	printf("{'found_user':{'userid':%d}}\n", nId);
+	printf("{\"found_user\":{\"userid\":%d}}\n", nId);
 	userGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 }
 
@@ -76,14 +74,14 @@ void XN_CALLBACK_TYPE new_user(xn::UserGenerator& generator, XnUserID nId, void*
 
 // Callback: An existing user was lost
 void XN_CALLBACK_TYPE lost_user(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
-//	printf("{'lost_user':{'userid':%d}}\n", nId);
+//	printf("{'lost_user\":{\"userid\":%d}}\n", nId);
 }
 
 
 
 // Callback: Detected a pose
 void XN_CALLBACK_TYPE pose_detected(xn::PoseDetectionCapability& capability, const XnChar* strPose, XnUserID nId, void* pCookie) {
-//	printf("{'pose_detected':{'userid':%d,'type':'%s'}\n", nId, strPose);
+//	printf("{'pose_detected\":{\"userid\":%d,'type':'%s'}\n", nId, strPose);
 	userGenerator.GetPoseDetectionCap().StopPoseDetection(nId);
 	userGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 }
@@ -92,7 +90,7 @@ void XN_CALLBACK_TYPE pose_detected(xn::PoseDetectionCapability& capability, con
 
 // Callback: Started calibration
 void XN_CALLBACK_TYPE calibration_started(xn::SkeletonCapability& capability, XnUserID nId, void* pCookie) {
-	printf("{'calibration_started':{'userid':%d}\n", nId);
+	printf("{\"calibration_started\":{\"userid\":%d}}\n", nId);
 }
 
 
@@ -100,11 +98,11 @@ void XN_CALLBACK_TYPE calibration_started(xn::SkeletonCapability& capability, Xn
 // Callback: Finished calibration
 void XN_CALLBACK_TYPE calibration_ended(xn::SkeletonCapability& capability, XnUserID nId, XnBool bSuccess, void* pCookie) {
 	if (bSuccess) {
-		printf("{'calibration_ended':{'userid':%d}\n", nId);
+		printf("{\"calibration_ended\":{\"userid\":%d}}\n", nId);
 		userGenerator.GetSkeletonCap().StartTracking(nId);
 	}
 	else {
-		printf("{'calibration_failed':{'userid':%d}\n", nId);
+		printf("{\"calibration_failed\":{\"userid\":%d}}\n", nId);
 		userGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 	}
 }
@@ -133,13 +131,16 @@ int jointPos(XnUserID player, XnSkeletonJoint eJoint) {
 	return 0;
 }
 
-void writeUserPosition(XnUserID id) {
+void writeUserPosition(string *s, XnUserID id) {
 	XnPoint3D com;
 	userGenerator.GetCoM(id, com);
 
 	if (fabsf( com.X - 0.0f ) > 0.1f)
 	{
-		cout << ("{'userid':%d,'X':%.3f,'Y':%.3f,'Z':%.3f}\n", id, com.X, com.Y, com.Z);
+		char tmp[1024];
+		
+		sprintf(tmp, "{\"userid\":%u,\"X\":%.3f,\"Y\":%.3f,\"Z\":%.3f}\n", id, com.X, com.Y, com.Z);
+		*s += tmp;
 	}
 }
 
@@ -155,9 +156,10 @@ void writeHand() {
 	haveHand = false;
 }
 
-void writeJoint(char* t, float* jointCoords) {
-	sprintf(tmp, "{'joint':{'type':'%s','X':%.3f,'Y':%.3f,'Z':%.3f}},", t, jointCoords[0], jointCoords[1], jointCoords[2]);
-	cout << tmp;
+void writeJoint(string *s, char* t, float* jointCoords) {
+	char tmp[1024];
+	sprintf(tmp, "{\"joint\":{\"type\":\"%s\",\"X\":%.3f,\"Y\":%.3f,\"Z\":%.3f}},", t, jointCoords[0], jointCoords[1], jointCoords[2]);
+	*s += tmp;
 }
 
 void writeSkeleton() {
@@ -165,110 +167,124 @@ void writeSkeleton() {
 	// 	writeHand();
 	// 	return;
 	// }
+	
+	string s;
+	
 	XnUserID aUsers[15];
 	XnUInt16 nUsers = 15;
 	
-	cout << "{'skeletons':[";
+	s += "{\"skeletons\":[";
 
 	int skeletons=0;
 
 	userGenerator.GetUsers(aUsers, nUsers);
 	for (int i = 0; i < nUsers; ++i) {
+		if (i > 0)
+		{
+			s += ",";
+		}
+
+		char tmp[1024];
+		sprintf(tmp, "{\"userid\":%d,\"joints\":[", i);
+		s += tmp;
+
 		if (userGenerator.GetSkeletonCap().IsTracking(aUsers[i])) {
 			skeletons++;
-			cout << "{'userid':" << i << ",'joints':[";
 			if (jointPos(aUsers[i], XN_SKEL_HEAD) == 0) {
-				writeJoint("head", jointCoords);
+				writeJoint(&s, "head", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_NECK) == 0) {
-				writeJoint("neck", jointCoords);
+				writeJoint(&s, "neck", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_LEFT_COLLAR) == 0) {
-				writeJoint("l_collar", jointCoords);
+				writeJoint(&s, "l_collar", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_LEFT_SHOULDER) == 0) {
-				writeJoint("l_shoulder", jointCoords);
+				writeJoint(&s, "l_shoulder", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_LEFT_ELBOW) == 0) {
-				writeJoint("l_elbow", jointCoords);
+				writeJoint(&s, "l_elbow", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_LEFT_WRIST) == 0) {
-				writeJoint("l_wrist", jointCoords);
+				writeJoint(&s, "l_wrist", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_LEFT_HAND) == 0) {
-				writeJoint("l_hand", jointCoords);
+				writeJoint(&s, "l_hand", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_LEFT_FINGERTIP) == 0) {
-				writeJoint("l_fingertop", jointCoords);
+				writeJoint(&s, "l_fingertop", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_RIGHT_COLLAR) == 0) {
-				writeJoint("r_collar", jointCoords);
+				writeJoint(&s, "r_collar", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_RIGHT_SHOULDER) == 0) {
-				writeJoint("r_shoulder", jointCoords);
+				writeJoint(&s, "r_shoulder", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_RIGHT_ELBOW) == 0) {
-				writeJoint("r_elbow", jointCoords);
+				writeJoint(&s, "r_elbow", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_RIGHT_WRIST) == 0) {
-				writeJoint("r_wrist", jointCoords);
+				writeJoint(&s, "r_wrist", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_RIGHT_HAND) == 0) {
-				writeJoint("r_hand", jointCoords);
+				writeJoint(&s, "r_hand", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_RIGHT_FINGERTIP) == 0) {
-				writeJoint("r_fingertip", jointCoords);
+				writeJoint(&s, "r_fingertip", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_TORSO) == 0) {
-				writeJoint("torso", jointCoords);
+				writeJoint(&s, "torso", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_WAIST) == 0) {
-				writeJoint("waist", jointCoords);
+				writeJoint(&s, "waist", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_LEFT_HIP) == 0) {
-				writeJoint("l_hip", jointCoords);
+				writeJoint(&s, "l_hip", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_LEFT_KNEE) == 0) {
-				writeJoint("l_knee", jointCoords);
+				writeJoint(&s, "l_knee", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_LEFT_ANKLE) == 0) {
-				writeJoint("l_ankle", jointCoords);
+				writeJoint(&s, "l_ankle", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_LEFT_FOOT) == 0) {
-				writeJoint("l_foot", jointCoords);
+				writeJoint(&s, "l_foot", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_RIGHT_HIP) == 0) {
-				writeJoint("r_hip", jointCoords);
+				writeJoint(&s, "r_hip", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_RIGHT_KNEE) == 0) {
-				writeJoint("r_knee", jointCoords);
+				writeJoint(&s, "r_knee", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_RIGHT_ANKLE) == 0) {
-				writeJoint("r_ankle", jointCoords);
+				writeJoint(&s, "r_ankle", jointCoords);
 			}
 			if (jointPos(aUsers[i], XN_SKEL_RIGHT_FOOT) == 0) {
-				writeJoint("r_foot", jointCoords);
+				writeJoint(&s, "r_foot", jointCoords);
 			}
-			cout << "]},";
+			s.erase(s.length()-1, 1);
 		}
 		else {
 			//Send user's center of mass
-			writeUserPosition(aUsers[i]);
+			writeUserPosition(&s, aUsers[i]);
 		}
+		s += "]}";
 	}
-	cout << "]},";
+	s += "]}";
 	if (skeletons > 0)
 	{
+		printf("%d skeletons\n", skeletons);
+		cout << s;
+		cout << "\n\n\n\n\n";
+		cout << endl;
 		cout.flush();
 	}
 	else
 	{
-		cout.clear();
+		s.clear();
 	}
 	skeletons=0;
 }
-
-
 
 int usage(char *name) {
 	printf("\nUsage: %s [OPTIONS]\n\
