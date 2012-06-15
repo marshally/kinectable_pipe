@@ -270,12 +270,10 @@ void writeSkeleton() {
 		}
 		s += "]}";
 	}
-	s += "]}";
+	s += "]}\n";
 	if (skeletons > 0)
 	{
-		printf("%d skeletons\n", skeletons);
 		cout << s;
-		cout << "\n\n\n\n\n";
 		cout << endl;
 		cout.flush();
 	}
@@ -330,7 +328,7 @@ void main_loop() {
 
 
 int main(int argc, char **argv) {
-	printf("Initializing...\n");
+	printf("{\"status\":\"initializing\"}\n");
 	unsigned int arg = 1,
 		require_argument = 0,
 		port_argument = 0;
@@ -407,8 +405,7 @@ int main(int argc, char **argv) {
 	signal(SIGTERM, terminate);
 	signal(SIGINT, terminate);
 
-	printf("Initializing Sensor...\n");
-	printf("Looking for users...\n\n");
+	printf("{\"status\":\"seeking_users\"}\n");
 	context.StartGeneratingAll();
 
 	if (handMode) {
