@@ -1,6 +1,6 @@
-# KinectPipe
+# kinectable_pipe
 
-KinectPipe is a command-line utility that dumps user skeleton data from a Microsoft Kinect device to a standard Unix pipe.
+kinectable_pipe is a command-line utility that dumps user skeleton data from a Microsoft Kinect device to a standard Unix pipe.
 
 ### Why?
 
@@ -12,4 +12,4 @@ Because Kinect programming is a pain in the neck, and by trivializing the device
 
 ## USAGE
 
-    % kinectpipe -r 30
+    % kinectable_pipe -r 30

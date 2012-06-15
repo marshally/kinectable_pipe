@@ -1,7 +1,7 @@
-all: kinectpipe
+all: kinectable_pipe
 
-kinectpipe:
-	g++ src/KinectPipe.cpp -O3 -Wno-write-strings -Iliblo-0.26-modified -I/usr/include/ni -lOpenNI -lstdc++ -o kinectpipe
+kinectable_pipe:
+	g++ src/kinectable_pipe.cpp -O3 -Wno-write-strings -Iliblo-0.26-modified -I/usr/include/ni -lOpenNI -lstdc++ -o kinectable_pipe
 
 clean:
-	rm -f kinectpipe; make
+	rm -f kinectable_pipe; make
