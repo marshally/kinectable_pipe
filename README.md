@@ -37,11 +37,14 @@ Yes, that's the point. Do One Thing and Do It Well. There's an accompanying ruby
     # until it recognizes you and starts pumping out skeleton data
     # to STDOUT
 
+## OPTIONS
+
+    -r 15 # restrict output to 15fps, Kinect max is 30fps
+
 ## TODO
 
 1. Recognize all available `xn::GestureGenerator`
 1. Fix output to work with non-interactive terminal sessions.
-1. Add CLI argument `-r` to change output framerate.
 1. Improve Ruby sample app.
 1. Add sample apps for other scripting languages.
 1. Add CLI argument for alternate output encodings (XML, msgpack, BERT, whatever).
