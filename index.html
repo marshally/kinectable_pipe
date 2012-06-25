@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen" />
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print" />
+
+    <title>Kinectable pipe by marshally</title>
+  </head>
+
+  <body>
+
+    <header>
+      <div class="container">
+        <h1>Kinectable pipe</h1>
+        <h2>kinectable_pipe</h2>
+
+        <section id="downloads">
+          <a href="https://github.com/marshally/kinectable_pipe/zipball/master" class="btn">Download as .zip</a>
+          <a href="https://github.com/marshally/kinectable_pipe/tarball/master" class="btn">Download as .tar.gz</a>
+          <a href="https://github.com/marshally/kinectable_pipe" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
+        </section>
+      </div>
+    </header>
+
+    <div class="container">
+      <section id="main_content">
+        <h1>kinectable_pipe</h1>
+
+<p>kinectable_pipe is a command-line utility that dumps user skeleton data from a Microsoft Kinect device to a standard Unix pipe.</p>
+
+<h3>Why?</h3>
+
+<p>To bring Unix-y goodness to the world of Microsoft Kinect programming!</p>
+
+<h3>No, really, why?</h3>
+
+<p>Because Kinect programming is a pain in the neck, and by trivializing the device's output into a simple text format, it becomes infinitely easier to digest in the scripting language of your choice.</p>
+
+<h3>This seems simple to the point of being almost useless</h3>
+
+<p>Yes, that's the point. Do One Thing and Do It Well. There's an accompanying rubygem that will add all the smart stuff like advanced gesture recognition, events, etc.</p>
+
+<h2>USAGE</h2>
+
+<pre><code>% kinectable_pipe | ruby some_other_script.rb
+</code></pre>
+
+<h2>INSTALLATION (OS X / homebrew)</h2>
+
+<pre><code># must have universal binary for libusb
+brew uninstall libusb
+brew install libusb --universal
+
+brew tap marshally/alt
+
+brew install kinectable_pipe
+
+# now plug in your kinect
+# and run this command in the terminal
+
+kinectable_pipe
+
+# step back from the sensor, wave your arms like a lunatic
+# until it recognizes you and starts pumping out skeleton data
+# to STDOUT
+</code></pre>
+
+<h2>TODO</h2>
+
+<ol>
+<li>Recognize all available <code>xn::GestureGenerator</code>
+</li>
+<li>Fix output to work with non-interactive terminal sessions.</li>
+<li>Add CLI argument <code>-r</code> to change output framerate.</li>
+<li>Improve Ruby sample app.</li>
+<li>Add sample apps for other scripting languages.</li>
+<li>Add CLI argument for alternate output encodings (XML, msgpack, BERT, whatever).</li>
+</ol>
+      </section>
+    </div>
+
+              <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-32915669-1");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+  </body>
+</html>
