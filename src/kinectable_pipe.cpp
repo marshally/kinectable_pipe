@@ -156,9 +156,28 @@ void writeHand() {
 	haveHand = false;
 }
 
+bool validJoint(float* jointCoords) {
+
+	for (int i=0; i < 3; i++)
+	{
+		if (fabsf( jointCoords[i] - 0.0f ) < 0.01f) return false;
+		if (jointCoords[i] > 100000.0f) return false;
+		if (jointCoords[i] < -100000.0f) return false;
+	}
+
+	return true;
+}
+
 void writeJoint(string *s, char* t, float* jointCoords) {
 	char tmp[1024];
-	sprintf(tmp, "{\"joint\":{\"type\":\"%s\",\"X\":%.3f,\"Y\":%.3f,\"Z\":%.3f}},", t, jointCoords[0], jointCoords[1], jointCoords[2]);
+	if (validJoint(jointCoords))
+	{
+		sprintf(tmp, "{\"joint\":{\"type\":\"%s\",\"X\":%.3f,\"Y\":%.3f,\"Z\":%.3f}},", t, jointCoords[0], jointCoords[1], jointCoords[2]);
+	}
+	else
+	{
+		sprintf(tmp, ",");
+	}
 	*s += tmp;
 }
 
