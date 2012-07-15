@@ -42,7 +42,7 @@ time_t last = 0;
 
 //gesture callbacks
 void XN_CALLBACK_TYPE Gesture_Recognized(xn::GestureGenerator& generator, const XnChar* strGesture, const XnPoint3D* pIDPosition, const XnPoint3D* pEndPosition, void* pCookie) {
-	printf("{\"gesture\":{\"type\":\"%s\"}}\n", strGesture);
+	printf("{\"gesture\":{\"type\":\"%s\"}, time:%d}}\n", strGesture, last);
 	gestureGenerator.RemoveGesture(strGesture);
 	handsGenerator.StartTracking(*pEndPosition);
 }
@@ -55,7 +55,7 @@ void XN_CALLBACK_TYPE new_hand(xn::HandsGenerator &generator, XnUserID nId, cons
 //	printf("{'found_hand\":{\"userid\":%d,'x':%.3f,'y':%.3f,'z':%.3f}}\n", nId, pPosition->X, pPosition->Y, pPosition->Z);
 }
 void XN_CALLBACK_TYPE lost_hand(xn::HandsGenerator &generator, XnUserID nId, XnFloat fTime, void *pCookie) {
-	printf("{\"lost_hand\":{\"userid\":%d}}\n", nId);
+	printf("{\"lost_hand\":{\"userid\":%d}, time:%d}}\n", nId, last);
 	gestureGenerator.AddGesture(GESTURE_TO_USE, NULL);
 }
 
@@ -69,7 +69,7 @@ void XN_CALLBACK_TYPE update_hand(xn::HandsGenerator &generator, XnUserID nId, c
 
 // Callback: New user was detected
 void XN_CALLBACK_TYPE new_user(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
-	printf("{\"found_user\":{\"userid\":%d}}\n", nId);
+	printf("{\"found_user\":{\"userid\":%d}, time:%d}\n", nId, last);
 	userGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 }
 
@@ -93,7 +93,7 @@ void XN_CALLBACK_TYPE pose_detected(xn::PoseDetectionCapability& capability, con
 
 // Callback: Started calibration
 void XN_CALLBACK_TYPE calibration_started(xn::SkeletonCapability& capability, XnUserID nId, void* pCookie) {
-	printf("{\"calibration_started\":{\"userid\":%d}}\n", nId);
+	printf("{\"calibration_started\":{\"userid\":%d}, time:%d}\n", nId, last);
 }
 
 
@@ -101,11 +101,11 @@ void XN_CALLBACK_TYPE calibration_started(xn::SkeletonCapability& capability, Xn
 // Callback: Finished calibration
 void XN_CALLBACK_TYPE calibration_ended(xn::SkeletonCapability& capability, XnUserID nId, XnBool bSuccess, void* pCookie) {
 	if (bSuccess) {
-		printf("{\"calibration_ended\":{\"userid\":%d}}\n", nId);
+		printf("{\"calibration_ended\":{\"userid\":%d}, time:%d}\n", nId, last);
 		userGenerator.GetSkeletonCap().StartTracking(nId);
 	}
 	else {
-		printf("{\"calibration_failed\":{\"userid\":%d}}\n", nId);
+		printf("{\"calibration_failed\":{\"userid\":%d}, time:%d}\n", nId, last);
 		userGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 	}
 }
@@ -273,7 +273,10 @@ void writeSkeleton() {
 		}
 		s += "]}";
 	}
-	s += "]}\n";
+	// add a timestamp
+	sprintf(tmp, "],time=%d}", last);
+	s += tmp;
+
 	if (skeletons > 0)
 	{
 		cout << s;
@@ -331,15 +334,16 @@ void main_loop() {
 	time_t next = last + 1.0 / FRAMERATE;
 	time_t now = time(NULL);
 	if (next < now) {
-		writeSkeleton();
 		last = now;
+		writeSkeleton();
 	}
 }
 
 
 
 int main(int argc, char **argv) {
-	printf("{\"status\":\"initializing\"}\n");
+	last = time(NULL);
+	printf("{\"status\":\"initializing\", time:%d}}\n", last);
 	unsigned int arg = 1,
 		require_argument = 0,
 		port_argument = 0;
