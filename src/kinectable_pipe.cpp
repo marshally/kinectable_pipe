@@ -36,6 +36,9 @@ xn::GestureGenerator gestureGenerator;
 XnChar g_strPose[20] = "";
 #define GESTURE_TO_USE "Wave"
 
+// framerate related config
+double FRAMERATE = 0;
+time_t last = 0;
 
 //gesture callbacks
 void XN_CALLBACK_TYPE Gesture_Recognized(xn::GestureGenerator& generator, const XnChar* strGesture, const XnPoint3D* pIDPosition, const XnPoint3D* pEndPosition, void* pCookie) {
@@ -286,12 +289,12 @@ void writeSkeleton() {
 
 int usage(char *name) {
 	printf("\nUsage: %s [OPTIONS]\n\
-		Example: %s -f 30\n\
+		Example: %s -r 30\n\
 		\n\
 		(The above example corresponds to the defaults)\n\
 		\n\
 		Options:\n\
-		-f <n>\t FPS\n\
+		-r <n>\t framerate\n\
 		For a more detailed explanation of options consult the README file.\n\n",
 		name, name);
 	exit(1);
@@ -322,7 +325,15 @@ void main_loop() {
 	context.WaitAnyUpdateAll();
 	// Process the data
 	depth.GetMetaData(depthMD);
-	writeSkeleton();
+	
+	// FIXME: This needs to be converted to ticks
+	// maybe use gettimeofday?
+	time_t next = last + 1.0 / FRAMERATE;
+	time_t now = time(NULL);
+	if (next < now) {
+		writeSkeleton();
+		last = now;
+	}
 }
 
 
@@ -337,14 +348,9 @@ int main(int argc, char **argv) {
 	XnCallbackHandle hUserCallbacks, hCalibrationCallbacks, hPoseCallbacks, hHandsCallbacks, hGestureCallbacks;
 	xn::Recorder recorder;
 
-	context.Init();
-
 	while ((arg < argc) && (argv[arg][0] == '-')) {
 		switch (argv[arg][1]) {
-			case 'a':
-			case 'p':
-			case 'm':
-			case 'o':
+			case 'r':
 			require_argument = 1;
 			break;
 			default:
@@ -359,17 +365,25 @@ int main(int argc, char **argv) {
 
 		switch (argv[arg][1]) {
 			case 'h':
-			usage(argv[0]);
-			break;
+				usage(argv[0]);
+				break;
+			case 'r': //Set framerate
+				if(sscanf(argv[arg+1], "%lf", &FRAMERATE) == EOF ) {
+					printf("Bad framerate given.\n");
+					usage(argv[0]);
+				}
+				break;
 			default:
-			printf("Unrecognized option.\n");
-			usage(argv[0]);
+				printf("Unrecognized option.\n");
+				usage(argv[0]);
 		}
 		if ( require_argument )
 			arg += 2;
 		else
 			arg ++;
 	}
+
+	context.Init();
 
 	checkRetVal(depth.Create(context));
 
