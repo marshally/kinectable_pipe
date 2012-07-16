@@ -38,7 +38,7 @@ XnChar g_strPose[20] = "";
 #define GESTURE_TO_USE "Wave"
 
 // framerate related config
-double FRAMERATE = 0;
+double FRAMERATE = 30;
 std::clock_t last;
 
 float clockAsFloat(std::clock_t t) {
@@ -47,7 +47,7 @@ float clockAsFloat(std::clock_t t) {
 
 //gesture callbacks
 void XN_CALLBACK_TYPE Gesture_Recognized(xn::GestureGenerator& generator, const XnChar* strGesture, const XnPoint3D* pIDPosition, const XnPoint3D* pEndPosition, void* pCookie) {
-	printf("{\"gesture\":{\"type\":\"%s\"}, elapsed:%.3f}}\n", strGesture, clockAsFloat(last));
+	printf("{\"gesture\":{\"type\":\"%s\"}, \"elapsed\":%.3f}}\n", strGesture, clockAsFloat(last));
 	gestureGenerator.RemoveGesture(strGesture);
 	handsGenerator.StartTracking(*pEndPosition);
 }
@@ -60,7 +60,7 @@ void XN_CALLBACK_TYPE new_hand(xn::HandsGenerator &generator, XnUserID nId, cons
 //	printf("{'found_hand\":{\"userid\":%d,'x':%.3f,'y':%.3f,'z':%.3f}}\n", nId, pPosition->X, pPosition->Y, pPosition->Z);
 }
 void XN_CALLBACK_TYPE lost_hand(xn::HandsGenerator &generator, XnUserID nId, XnFloat fTime, void *pCookie) {
-	printf("{\"lost_hand\":{\"userid\":%d}, elapsed:%.3f}}\n", nId, clockAsFloat(last));
+	printf("{\"lost_hand\":{\"userid\":%d}, \"elapsed\":%.3f}}\n", nId, clockAsFloat(last));
 	gestureGenerator.AddGesture(GESTURE_TO_USE, NULL);
 }
 
@@ -74,7 +74,7 @@ void XN_CALLBACK_TYPE update_hand(xn::HandsGenerator &generator, XnUserID nId, c
 
 // Callback: New user was detected
 void XN_CALLBACK_TYPE new_user(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
-	printf("{\"found_user\":{\"userid\":%d}, elapsed:%.3f}\n", nId, clockAsFloat(last));
+	printf("{\"found_user\":{\"userid\":%d}, \"elapsed\":%.3f}\n", nId, clockAsFloat(last));
 	userGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 }
 
@@ -99,7 +99,7 @@ void XN_CALLBACK_TYPE pose_detected(xn::PoseDetectionCapability& capability, con
 // Callback: Started calibration
 void XN_CALLBACK_TYPE calibration_started(xn::SkeletonCapability& capability, XnUserID nId, void* pCookie) {
 	last = std::clock();
-	printf("{\"calibration_started\":{\"userid\":%d}, elapsed:%.3f}\n", nId, clockAsFloat(last));
+	printf("{\"calibration_started\":{\"userid\":%d}, \"elapsed\":%.3f}\n", nId, clockAsFloat(last));
 }
 
 
@@ -107,11 +107,11 @@ void XN_CALLBACK_TYPE calibration_started(xn::SkeletonCapability& capability, Xn
 // Callback: Finished calibration
 void XN_CALLBACK_TYPE calibration_ended(xn::SkeletonCapability& capability, XnUserID nId, XnBool bSuccess, void* pCookie) {
 	if (bSuccess) {
-		printf("{\"calibration_ended\":{\"userid\":%d}, elapsed:%.3f}\n", nId, clockAsFloat(last));
+		printf("{\"calibration_ended\":{\"userid\":%d}, \"elapsed\":%.3f}\n", nId, clockAsFloat(last));
 		userGenerator.GetSkeletonCap().StartTracking(nId);
 	}
 	else {
-		printf("{\"calibration_failed\":{\"userid\":%d}, elapsed:%.3f}\n", nId, clockAsFloat(last));
+		printf("{\"calibration_failed\":{\"userid\":%d}, \"elapsed\":%.3f}\n", nId, clockAsFloat(last));
 		userGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 	}
 }
@@ -169,6 +169,7 @@ bool validJoint(float* jointCoords) {
 
 	for (int i=0; i < 3; i++)
 	{
+		if (jointCoords[i] == 0.0f) return false;
 		if (fabsf( jointCoords[i] - 0.0f ) < 0.01f) return false;
 		if (jointCoords[i] > 100000.0f) return false;
 		if (jointCoords[i] < -100000.0f) return false;
@@ -183,10 +184,6 @@ void writeJoint(string *s, char* t, float* jointCoords) {
 	{
 		sprintf(tmp, "{\"joint\":{\"type\":\"%s\",\"X\":%.3f,\"Y\":%.3f,\"Z\":%.3f}},", t, jointCoords[0], jointCoords[1], jointCoords[2]);
 	}
-	else
-	{
-		sprintf(tmp, ",");
-	}
 	*s += tmp;
 }
 
@@ -195,7 +192,6 @@ void writeSkeleton() {
 	// 	writeHand();
 	// 	return;
 	// }
-	
 	string s;
 	
 	XnUserID aUsers[15];
@@ -211,7 +207,6 @@ void writeSkeleton() {
 		{
 			s += ",";
 		}
-
 		char tmp[1024];
 		sprintf(tmp, "{\"userid\":%d,\"joints\":[", i);
 		s += tmp;
@@ -300,7 +295,7 @@ void writeSkeleton() {
 	}
 	// add a timestamp
 	char tmp[1024];
-	sprintf(tmp, "],time=%.3f}", clockAsFloat(last));
+	sprintf(tmp, "],\"elapsed\":%.3f}", clockAsFloat(last));
 	s += tmp;
 
 	if (skeletons > 0)
@@ -364,9 +359,8 @@ void main_loop() {
 
 int main(int argc, char **argv) {
 	last = std::clock();
-	printf("%ld\n", last);
-	printf("%.3f\n", clockAsFloat(last));
-	printf("{\"status\":\"initializing\", elapsed:%0.3f}}\n", clockAsFloat(last));
+
+	printf("{\"status\":\"initializing\", \"elapsed\":%0.3f}\n", clockAsFloat(last));
 	unsigned int arg = 1,
 		require_argument = 0,
 		port_argument = 0;
@@ -446,7 +440,7 @@ int main(int argc, char **argv) {
 	signal(SIGTERM, terminate);
 	signal(SIGINT, terminate);
 
-	printf("{\"status\":\"seeking_users\", elapsed:%.3f}\n", clockAsFloat(last));
+	printf("{\"status\":\"seeking_users\", \"elapsed\":%.3f}\n", clockAsFloat(last));
 	context.StartGeneratingAll();
 
 	if (handMode) {
