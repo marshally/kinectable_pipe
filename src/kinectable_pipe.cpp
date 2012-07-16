@@ -1,5 +1,6 @@
 
 #include <cstdio>
+#include <ctime>
 #include <csignal>
 
 #include <XnCppWrapper.h>
@@ -38,11 +39,15 @@ XnChar g_strPose[20] = "";
 
 // framerate related config
 double FRAMERATE = 0;
-time_t last = 0;
+std::clock_t last;
+
+float clockAsFloat(std::clock_t t) {
+	return t / (double) CLOCKS_PER_SEC;
+}
 
 //gesture callbacks
 void XN_CALLBACK_TYPE Gesture_Recognized(xn::GestureGenerator& generator, const XnChar* strGesture, const XnPoint3D* pIDPosition, const XnPoint3D* pEndPosition, void* pCookie) {
-	printf("{\"gesture\":{\"type\":\"%s\"}, time:%d}}\n", strGesture, last);
+	printf("{\"gesture\":{\"type\":\"%s\"}, elapsed:%.3f}}\n", strGesture, clockAsFloat(last));
 	gestureGenerator.RemoveGesture(strGesture);
 	handsGenerator.StartTracking(*pEndPosition);
 }
@@ -55,7 +60,7 @@ void XN_CALLBACK_TYPE new_hand(xn::HandsGenerator &generator, XnUserID nId, cons
 //	printf("{'found_hand\":{\"userid\":%d,'x':%.3f,'y':%.3f,'z':%.3f}}\n", nId, pPosition->X, pPosition->Y, pPosition->Z);
 }
 void XN_CALLBACK_TYPE lost_hand(xn::HandsGenerator &generator, XnUserID nId, XnFloat fTime, void *pCookie) {
-	printf("{\"lost_hand\":{\"userid\":%d}, time:%d}}\n", nId, last);
+	printf("{\"lost_hand\":{\"userid\":%d}, elapsed:%.3f}}\n", nId, clockAsFloat(last));
 	gestureGenerator.AddGesture(GESTURE_TO_USE, NULL);
 }
 
@@ -69,7 +74,7 @@ void XN_CALLBACK_TYPE update_hand(xn::HandsGenerator &generator, XnUserID nId, c
 
 // Callback: New user was detected
 void XN_CALLBACK_TYPE new_user(xn::UserGenerator& generator, XnUserID nId, void* pCookie) {
-	printf("{\"found_user\":{\"userid\":%d}, time:%d}\n", nId, last);
+	printf("{\"found_user\":{\"userid\":%d}, elapsed:%.3f}\n", nId, clockAsFloat(last));
 	userGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 }
 
@@ -93,7 +98,8 @@ void XN_CALLBACK_TYPE pose_detected(xn::PoseDetectionCapability& capability, con
 
 // Callback: Started calibration
 void XN_CALLBACK_TYPE calibration_started(xn::SkeletonCapability& capability, XnUserID nId, void* pCookie) {
-	printf("{\"calibration_started\":{\"userid\":%d}, time:%d}\n", nId, last);
+	last = std::clock();
+	printf("{\"calibration_started\":{\"userid\":%d}, elapsed:%.3f}\n", nId, clockAsFloat(last));
 }
 
 
@@ -101,11 +107,11 @@ void XN_CALLBACK_TYPE calibration_started(xn::SkeletonCapability& capability, Xn
 // Callback: Finished calibration
 void XN_CALLBACK_TYPE calibration_ended(xn::SkeletonCapability& capability, XnUserID nId, XnBool bSuccess, void* pCookie) {
 	if (bSuccess) {
-		printf("{\"calibration_ended\":{\"userid\":%d}, time:%d}\n", nId, last);
+		printf("{\"calibration_ended\":{\"userid\":%d}, elapsed:%.3f}\n", nId, clockAsFloat(last));
 		userGenerator.GetSkeletonCap().StartTracking(nId);
 	}
 	else {
-		printf("{\"calibration_failed\":{\"userid\":%d}, time:%d}\n", nId, last);
+		printf("{\"calibration_failed\":{\"userid\":%d}, elapsed:%.3f}\n", nId, clockAsFloat(last));
 		userGenerator.GetSkeletonCap().RequestCalibration(nId, TRUE);
 	}
 }
@@ -274,7 +280,8 @@ void writeSkeleton() {
 		s += "]}";
 	}
 	// add a timestamp
-	sprintf(tmp, "],time=%d}", last);
+	char tmp[1024];
+	sprintf(tmp, "],time=%.3f}", clockAsFloat(last));
 	s += tmp;
 
 	if (skeletons > 0)
@@ -314,14 +321,10 @@ void checkRetVal(XnStatus nRetVal) {
 	}
 }
 
-
-
 void terminate(int ignored) {
 	context.Shutdown();
 	exit(0);
 }
-
-
 
 void main_loop() {
 	// Read next available data
@@ -331,19 +334,20 @@ void main_loop() {
 	
 	// FIXME: This needs to be converted to ticks
 	// maybe use gettimeofday?
-	time_t next = last + 1.0 / FRAMERATE;
-	time_t now = time(NULL);
-	if (next < now) {
+	double next = clockAsFloat(last) + 1.0 / FRAMERATE;
+	
+	std::clock_t now = std::clock();
+	if (next < clockAsFloat(now)) {
 		last = now;
 		writeSkeleton();
 	}
 }
 
-
-
 int main(int argc, char **argv) {
-	last = time(NULL);
-	printf("{\"status\":\"initializing\", time:%d}}\n", last);
+	last = std::clock();
+	printf("%ld\n", last);
+	printf("%.3f\n", clockAsFloat(last));
+	printf("{\"status\":\"initializing\", elapsed:%0.3f}}\n", clockAsFloat(last));
 	unsigned int arg = 1,
 		require_argument = 0,
 		port_argument = 0;
@@ -423,7 +427,7 @@ int main(int argc, char **argv) {
 	signal(SIGTERM, terminate);
 	signal(SIGINT, terminate);
 
-	printf("{\"status\":\"seeking_users\"}\n");
+	printf("{\"status\":\"seeking_users\", elapsed:%.3f}\n", clockAsFloat(last));
 	context.StartGeneratingAll();
 
 	if (handMode) {
