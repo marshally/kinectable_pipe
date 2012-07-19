@@ -16,7 +16,7 @@ Yes, that's the point. Do One Thing and Do It Well. There's an accompanying ruby
 
 ## USAGE
 
-    % kinectable_pipe | ruby some_other_script.rb
+    % kinectable_pipe | ruby gesture_recognizer.rb | python play_light_show.py
 
 ## INSTALLATION (OS X / homebrew)
 
@@ -43,6 +43,7 @@ Yes, that's the point. Do One Thing and Do It Well. There's an accompanying ruby
 
 ## TODO
 
+1. Linux install instructions
 1. Recognize all available `xn::GestureGenerator`
 1. Fix output to work with non-interactive terminal sessions.
 1. Improve Ruby sample app.
