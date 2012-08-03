@@ -23,7 +23,6 @@ float orientConfidence;
 float handCoords[3];
 bool haveHand = false;
 
-bool handMode = false;
 bool sendRot = false;
 int nDimensions = 3;
 
@@ -147,7 +146,7 @@ void writeUserPosition(string *s, XnUserID id) {
 	if (fabsf( com.X - 0.0f ) > 0.1f)
 	{
 		char tmp[1024];
-		
+
 		sprintf(tmp, "{\"userid\":%u,\"X\":%.3f,\"Y\":%.3f,\"Z\":%.3f}\n", id, com.X, com.Y, com.Z);
 		*s += tmp;
 	}
@@ -188,15 +187,11 @@ void writeJoint(string *s, char* t, float* jointCoords) {
 }
 
 void writeSkeleton() {
-	// if (handMode) {
-	// 	writeHand();
-	// 	return;
-	// }
 	string s;
-	
+
 	XnUserID aUsers[15];
 	XnUInt16 nUsers = 15;
-	
+
 	s += "{\"skeletons\":[";
 
 	int skeletons=0;
@@ -345,11 +340,11 @@ void main_loop() {
 	context.WaitAnyUpdateAll();
 	// Process the data
 	depth.GetMetaData(depthMD);
-	
+
 	// FIXME: This needs to be converted to ticks
 	// maybe use gettimeofday?
 	double next = clockAsFloat(last) + 1.0 / FRAMERATE;
-	
+
 	std::clock_t now = std::clock();
 	if (next < clockAsFloat(now)) {
 		last = now;
@@ -415,25 +410,16 @@ int main(int argc, char **argv) {
 	// 	depth.SetMapOutputMode(mapMode);
 	// }
 
-	if (handMode) {
-		nRetVal = handsGenerator.Create(context);
-		nRetVal = gestureGenerator.Create(context);
-		nRetVal = gestureGenerator.RegisterGestureCallbacks(Gesture_Recognized, Gesture_Process, NULL, hGestureCallbacks);
-		nRetVal = handsGenerator.RegisterHandCallbacks(new_hand, update_hand, lost_hand, NULL, hHandsCallbacks);
-		handsGenerator.SetSmoothing(0.2);
-	}
-	else {
-		nRetVal = context.FindExistingNode(XN_NODE_TYPE_USER, userGenerator);
-		if (nRetVal != XN_STATUS_OK)
-			nRetVal = userGenerator.Create(context);
+	nRetVal = context.FindExistingNode(XN_NODE_TYPE_USER, userGenerator);
+	if (nRetVal != XN_STATUS_OK)
+		nRetVal = userGenerator.Create(context);
 
-		checkRetVal(userGenerator.RegisterUserCallbacks(new_user, lost_user, NULL, hUserCallbacks));
-		checkRetVal(userGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(calibration_started, calibration_ended, NULL, hCalibrationCallbacks));
-		checkRetVal(userGenerator.GetPoseDetectionCap().RegisterToPoseCallbacks(pose_detected, NULL, NULL, hPoseCallbacks));
-		checkRetVal(userGenerator.GetSkeletonCap().GetCalibrationPose(g_strPose));
-		checkRetVal(userGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL));
-		userGenerator.GetSkeletonCap().SetSmoothing(0.8);
-	}
+	checkRetVal(userGenerator.RegisterUserCallbacks(new_user, lost_user, NULL, hUserCallbacks));
+	checkRetVal(userGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(calibration_started, calibration_ended, NULL, hCalibrationCallbacks));
+	checkRetVal(userGenerator.GetPoseDetectionCap().RegisterToPoseCallbacks(pose_detected, NULL, NULL, hPoseCallbacks));
+	checkRetVal(userGenerator.GetSkeletonCap().GetCalibrationPose(g_strPose));
+	checkRetVal(userGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL));
+	userGenerator.GetSkeletonCap().SetSmoothing(0.8);
 
 	// xnSetMirror(depth, !mirrorMode);
 
@@ -442,10 +428,6 @@ int main(int argc, char **argv) {
 
 	printf("{\"status\":\"seeking_users\", \"elapsed\":%.3f}\n", clockAsFloat(last));
 	context.StartGeneratingAll();
-
-	if (handMode) {
-		nRetVal = gestureGenerator.AddGesture(GESTURE_TO_USE, NULL);
-	}
 
 	while(true)
 		main_loop();
