@@ -10,6 +10,8 @@
 
 #include <math.h>
 
+#include <png.hpp>
+
 using namespace std;
 
 int userID;
@@ -27,8 +29,12 @@ bool sendRot = false;
 int nDimensions = 3;
 
 xn::Context context;
+
 xn::DepthGenerator depth;
 xn::DepthMetaData depthMD;
+xn::ImageGenerator image;
+xn::ImageMetaData imageMD;
+
 xn::UserGenerator userGenerator;
 xn::HandsGenerator handsGenerator;
 xn::GestureGenerator gestureGenerator;
@@ -335,12 +341,90 @@ void terminate(int ignored) {
 	exit(0);
 }
 
+void writeRGB() {
+	png::image< png::rgb_pixel > output_image(imageMD.FullXRes(), imageMD.FullYRes());
+
+	const XnRGB24Pixel* pImageRow = imageMD.RGB24Data();
+  // XnRGB24Pixel* pTexRow = g_pTexMap + g_imageMD.YOffset() * g_nTexMapX;
+
+  for (XnUInt y = 0; y < imageMD.YRes(); ++y)
+  {
+    const XnRGB24Pixel* pImage = pImageRow;
+    // XnRGB24Pixel* pTex = pTexRow + g_imageMD.XOffset();
+    for (XnUInt x = 0; x < imageMD.XRes(); ++x, ++pImage) // , ++pTex
+    {
+			output_image[y][x] = png::rgb_pixel(pImage->nRed, pImage->nGreen, pImage->nBlue);
+      // *pTex = *pImage;
+    }
+    pImageRow += imageMD.XRes();
+    // pTexRow += g_nTexMapX;
+  }
+	output_image.write("rgb.png");
+}
+
+// code adapted from https://groups.google.com/group/openni-dev/tree/browse_frm/month/2011-03/c40f876672bb714c?rnum=11&lnk=nl
+#define MAX_DEPTH 10000
+
+void writeDepth() {
+	const XnDepthPixel* pDepth = depthMD.Data();
+	float pDepthHist[MAX_DEPTH];
+	// Calculate the accumulative histogram (the yellow display...)
+  xnOSMemSet(pDepthHist, 0, MAX_DEPTH*sizeof(float));
+  unsigned int nNumberOfPoints = 0;
+  for (XnUInt y = 0; y < depthMD.YRes(); ++y)
+  {
+    for (XnUInt x = 0; x < depthMD.XRes(); ++x, ++pDepth)
+    {
+      if (*pDepth != 0)
+      {
+        pDepthHist[*pDepth]++;
+        nNumberOfPoints++;
+      }
+    }
+  }
+  for (int nIndex=1; nIndex<MAX_DEPTH; nIndex++)
+  {
+    pDepthHist[nIndex] += pDepthHist[nIndex-1];
+  }
+  if (nNumberOfPoints)
+  {
+    for (int nIndex=1; nIndex<MAX_DEPTH; nIndex++)
+    {
+      pDepthHist[nIndex] = (unsigned int)(1024 * (1.0f - (pDepthHist[nIndex] / nNumberOfPoints)));
+    }
+  }
+
+	png::image< png::rgb_pixel > output_image(depthMD.FullXRes(), depthMD.FullYRes());
+
+	const XnDepthPixel* pDepthRow = depthMD.Data();
+  for (XnUInt y = 0; y < depthMD.YRes(); ++y)
+  {
+    const XnDepthPixel* pDepth = pDepthRow;
+    for (XnUInt x = 0; x < depthMD.XRes(); ++x, ++pDepth) //, ++pTex
+    {
+      if (*pDepth != 0)
+      {
+        int nHistValue = pDepthHist[*pDepth];
+				output_image[y][x] = png::rgb_pixel(nHistValue, nHistValue, nHistValue);
+      }
+    }
+    pDepthRow += depthMD.XRes();
+  }
+
+	output_image.write("depth.png");
+}
+
 void main_loop() {
 	// Read next available data
 	context.WaitAnyUpdateAll();
-	// Process the data
+
+	// Process the images
 	depth.GetMetaData(depthMD);
 
+	image.SetPixelFormat(XN_PIXEL_FORMAT_RGB24);
+	image.GetMetaData(imageMD);
+
+	// Process the data
 	// FIXME: This needs to be converted to ticks
 	// maybe use gettimeofday?
 	double next = clockAsFloat(last) + 1.0 / FRAMERATE;
@@ -349,8 +433,12 @@ void main_loop() {
 	if (next < clockAsFloat(now)) {
 		last = now;
 		writeSkeleton();
+		writeRGB();
+		writeDepth();
 	}
 }
+
+
 
 int main(int argc, char **argv) {
 	last = std::clock();
@@ -402,6 +490,7 @@ int main(int argc, char **argv) {
 	context.Init();
 
 	checkRetVal(depth.Create(context));
+	checkRetVal(image.Create(context));
 
 	// if (!play) {
 	// 	mapMode.nXRes = XN_VGA_X_RES;
