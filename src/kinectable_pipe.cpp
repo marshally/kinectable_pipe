@@ -390,11 +390,11 @@ void writeDepth() {
   {
     for (int nIndex=1; nIndex<MAX_DEPTH; nIndex++)
     {
-      pDepthHist[nIndex] = (unsigned int)(1024 * (1.0f - (pDepthHist[nIndex] / nNumberOfPoints)));
+      pDepthHist[nIndex] = (unsigned int)(65536 * (1.0f - (pDepthHist[nIndex] / nNumberOfPoints)));
     }
   }
 
-	png::image< png::rgb_pixel > output_image(depthMD.FullXRes(), depthMD.FullYRes());
+	png::image< png::gray_pixel_16 > output_image(depthMD.FullXRes(), depthMD.FullYRes());
 
 	const XnDepthPixel* pDepthRow = depthMD.Data();
   for (XnUInt y = 0; y < depthMD.YRes(); ++y)
@@ -405,7 +405,8 @@ void writeDepth() {
       if (*pDepth != 0)
       {
         int nHistValue = pDepthHist[*pDepth];
-				output_image[y][x] = png::rgb_pixel(nHistValue, nHistValue, nHistValue);
+//				output_image[y][x] = png::gray_pixel_16(nHistValue);
+				output_image[y][x] = png::gray_pixel_16(*pDepth);
       }
     }
     pDepthRow += depthMD.XRes();
