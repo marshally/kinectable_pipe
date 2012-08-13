@@ -10,7 +10,13 @@
 
 #include <math.h>
 
+#include <png.hpp>
+
 using namespace std;
+
+bool saveRgbImage = false;
+bool saveDepthImage = false;
+
 
 int userID;
 float jointCoords[3];
@@ -23,13 +29,16 @@ float orientConfidence;
 float handCoords[3];
 bool haveHand = false;
 
-bool handMode = false;
 bool sendRot = false;
 int nDimensions = 3;
 
 xn::Context context;
+
 xn::DepthGenerator depth;
 xn::DepthMetaData depthMD;
+xn::ImageGenerator image;
+xn::ImageMetaData imageMD;
+
 xn::UserGenerator userGenerator;
 xn::HandsGenerator handsGenerator;
 xn::GestureGenerator gestureGenerator;
@@ -147,7 +156,7 @@ void writeUserPosition(string *s, XnUserID id) {
 	if (fabsf( com.X - 0.0f ) > 0.1f)
 	{
 		char tmp[1024];
-		
+
 		sprintf(tmp, "{\"userid\":%u,\"X\":%.3f,\"Y\":%.3f,\"Z\":%.3f}\n", id, com.X, com.Y, com.Z);
 		*s += tmp;
 	}
@@ -188,15 +197,11 @@ void writeJoint(string *s, char* t, float* jointCoords) {
 }
 
 void writeSkeleton() {
-	// if (handMode) {
-	// 	writeHand();
-	// 	return;
-	// }
 	string s;
-	
+
 	XnUserID aUsers[15];
 	XnUInt16 nUsers = 15;
-	
+
 	s += "{\"skeletons\":[";
 
 	int skeletons=0;
@@ -319,6 +324,8 @@ int usage(char *name) {
 		\n\
 		Options:\n\
 		-r <n>\t framerate\n\
+		-i\t save rgb image\n\
+		-d\t save depth image\n\
 		For a more detailed explanation of options consult the README file.\n\n",
 		name, name);
 	exit(1);
@@ -340,19 +347,110 @@ void terminate(int ignored) {
 	exit(0);
 }
 
+void writeRGB() {
+	png::image< png::rgb_pixel > output_image(imageMD.FullXRes(), imageMD.FullYRes());
+
+	const XnRGB24Pixel* pImageRow = imageMD.RGB24Data();
+  // XnRGB24Pixel* pTexRow = g_pTexMap + g_imageMD.YOffset() * g_nTexMapX;
+
+  for (XnUInt y = 0; y < imageMD.YRes(); ++y)
+  {
+    const XnRGB24Pixel* pImage = pImageRow;
+    // XnRGB24Pixel* pTex = pTexRow + g_imageMD.XOffset();
+    for (XnUInt x = 0; x < imageMD.XRes(); ++x, ++pImage) // , ++pTex
+    {
+			output_image[y][x] = png::rgb_pixel(pImage->nRed, pImage->nGreen, pImage->nBlue);
+      // *pTex = *pImage;
+    }
+    pImageRow += imageMD.XRes();
+    // pTexRow += g_nTexMapX;
+  }
+	output_image.write("rgb.png");
+}
+
+// code adapted from https://groups.google.com/group/openni-dev/tree/browse_frm/month/2011-03/c40f876672bb714c?rnum=11&lnk=nl
+#define MAX_DEPTH 10000
+
+void writeDepth() {
+	const XnDepthPixel* pDepth = depthMD.Data();
+	float pDepthHist[MAX_DEPTH];
+	// Calculate the accumulative histogram (the yellow display...)
+  xnOSMemSet(pDepthHist, 0, MAX_DEPTH*sizeof(float));
+  unsigned int nNumberOfPoints = 0;
+  for (XnUInt y = 0; y < depthMD.YRes(); ++y)
+  {
+    for (XnUInt x = 0; x < depthMD.XRes(); ++x, ++pDepth)
+    {
+      if (*pDepth != 0)
+      {
+        pDepthHist[*pDepth]++;
+        nNumberOfPoints++;
+      }
+    }
+  }
+  for (int nIndex=1; nIndex<MAX_DEPTH; nIndex++)
+  {
+    pDepthHist[nIndex] += pDepthHist[nIndex-1];
+  }
+  if (nNumberOfPoints)
+  {
+    for (int nIndex=1; nIndex<MAX_DEPTH; nIndex++)
+    {
+      pDepthHist[nIndex] = (unsigned int)(65536 * (1.0f - (pDepthHist[nIndex] / nNumberOfPoints)));
+    }
+  }
+
+	png::image< png::gray_pixel_16 > output_image(depthMD.FullXRes(), depthMD.FullYRes());
+
+	const XnDepthPixel* pDepthRow = depthMD.Data();
+  for (XnUInt y = 0; y < depthMD.YRes(); ++y)
+  {
+    const XnDepthPixel* pDepth = pDepthRow;
+    for (XnUInt x = 0; x < depthMD.XRes(); ++x, ++pDepth) //, ++pTex
+    {
+      if (*pDepth != 0)
+      {
+        int nHistValue = pDepthHist[*pDepth];
+//				output_image[y][x] = png::gray_pixel_16(nHistValue);
+				output_image[y][x] = png::gray_pixel_16(*pDepth);
+      }
+    }
+    pDepthRow += depthMD.XRes();
+  }
+
+	output_image.write("depth.png");
+}
+
 void main_loop() {
 	// Read next available data
 	context.WaitAnyUpdateAll();
-	// Process the data
+
+	// Process the images
 	depth.GetMetaData(depthMD);
-	
+
+	image.SetPixelFormat(XN_PIXEL_FORMAT_RGB24);
+	image.GetMetaData(imageMD);
+
+	// Process the data
 	// FIXME: This needs to be converted to ticks
 	// maybe use gettimeofday?
 	double next = clockAsFloat(last) + 1.0 / FRAMERATE;
-	
+
 	std::clock_t now = std::clock();
 	if (next < clockAsFloat(now)) {
 		last = now;
+		if (saveRgbImage || saveDepthImage) {
+			printf("{\"status\":\"writing images\", \"elapsed\":%0.3f}\n", clockAsFloat(last));
+			fflush(stdout);
+			if (saveRgbImage) {
+				writeRGB();
+			}
+			if (saveDepthImage) {
+				writeDepth();
+			}
+			printf("{\"status\":\"images saved\", \"elapsed\":%0.3f}\n", clockAsFloat(last));
+			fflush(stdout);
+		}
 		writeSkeleton();
 	}
 }
@@ -388,6 +486,12 @@ int main(int argc, char **argv) {
 			case 'h':
 				usage(argv[0]);
 				break;
+			case 'i':
+				saveRgbImage = true;
+				break;
+			case 'd':
+				saveDepthImage = true;
+				break;
 			case 'r': //Set framerate
 				if(sscanf(argv[arg+1], "%lf", &FRAMERATE) == EOF ) {
 					printf("Bad framerate given.\n");
@@ -407,33 +511,18 @@ int main(int argc, char **argv) {
 	context.Init();
 
 	checkRetVal(depth.Create(context));
+	checkRetVal(image.Create(context));
 
-	// if (!play) {
-	// 	mapMode.nXRes = XN_VGA_X_RES;
-	// 	mapMode.nYRes = XN_VGA_Y_RES;
-	// 	mapMode.nFPS = 30;
-	// 	depth.SetMapOutputMode(mapMode);
-	// }
+	nRetVal = context.FindExistingNode(XN_NODE_TYPE_USER, userGenerator);
+	if (nRetVal != XN_STATUS_OK)
+		nRetVal = userGenerator.Create(context);
 
-	if (handMode) {
-		nRetVal = handsGenerator.Create(context);
-		nRetVal = gestureGenerator.Create(context);
-		nRetVal = gestureGenerator.RegisterGestureCallbacks(Gesture_Recognized, Gesture_Process, NULL, hGestureCallbacks);
-		nRetVal = handsGenerator.RegisterHandCallbacks(new_hand, update_hand, lost_hand, NULL, hHandsCallbacks);
-		handsGenerator.SetSmoothing(0.2);
-	}
-	else {
-		nRetVal = context.FindExistingNode(XN_NODE_TYPE_USER, userGenerator);
-		if (nRetVal != XN_STATUS_OK)
-			nRetVal = userGenerator.Create(context);
-
-		checkRetVal(userGenerator.RegisterUserCallbacks(new_user, lost_user, NULL, hUserCallbacks));
-		checkRetVal(userGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(calibration_started, calibration_ended, NULL, hCalibrationCallbacks));
-		checkRetVal(userGenerator.GetPoseDetectionCap().RegisterToPoseCallbacks(pose_detected, NULL, NULL, hPoseCallbacks));
-		checkRetVal(userGenerator.GetSkeletonCap().GetCalibrationPose(g_strPose));
-		checkRetVal(userGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL));
-		userGenerator.GetSkeletonCap().SetSmoothing(0.8);
-	}
+	checkRetVal(userGenerator.RegisterUserCallbacks(new_user, lost_user, NULL, hUserCallbacks));
+	checkRetVal(userGenerator.GetSkeletonCap().RegisterCalibrationCallbacks(calibration_started, calibration_ended, NULL, hCalibrationCallbacks));
+	checkRetVal(userGenerator.GetPoseDetectionCap().RegisterToPoseCallbacks(pose_detected, NULL, NULL, hPoseCallbacks));
+	checkRetVal(userGenerator.GetSkeletonCap().GetCalibrationPose(g_strPose));
+	checkRetVal(userGenerator.GetSkeletonCap().SetSkeletonProfile(XN_SKEL_PROFILE_ALL));
+	userGenerator.GetSkeletonCap().SetSmoothing(0.8);
 
 	// xnSetMirror(depth, !mirrorMode);
 
@@ -442,10 +531,6 @@ int main(int argc, char **argv) {
 
 	printf("{\"status\":\"seeking_users\", \"elapsed\":%.3f}\n", clockAsFloat(last));
 	context.StartGeneratingAll();
-
-	if (handMode) {
-		nRetVal = gestureGenerator.AddGesture(GESTURE_TO_USE, NULL);
-	}
 
 	while(true)
 		main_loop();
