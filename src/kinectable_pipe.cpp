@@ -14,6 +14,10 @@
 
 using namespace std;
 
+bool saveRgbImage = false;
+bool saveDepthImage = false;
+
+
 int userID;
 float jointCoords[3];
 float jointOrients[9];
@@ -320,6 +324,8 @@ int usage(char *name) {
 		\n\
 		Options:\n\
 		-r <n>\t framerate\n\
+		-i\t save rgb image\n\
+		-d\t save depth image\n\
 		For a more detailed explanation of options consult the README file.\n\n",
 		name, name);
 	exit(1);
@@ -433,13 +439,21 @@ void main_loop() {
 	std::clock_t now = std::clock();
 	if (next < clockAsFloat(now)) {
 		last = now;
+		if (saveRgbImage || saveDepthImage) {
+			printf("{\"status\":\"writing images\", \"elapsed\":%0.3f}\n", clockAsFloat(last));
+			fflush(stdout);
+			if (saveRgbImage) {
+				writeRGB();
+			}
+			if (saveDepthImage) {
+				writeDepth();
+			}
+			printf("{\"status\":\"images saved\", \"elapsed\":%0.3f}\n", clockAsFloat(last));
+			fflush(stdout);
+		}
 		writeSkeleton();
-		writeRGB();
-		writeDepth();
 	}
 }
-
-
 
 int main(int argc, char **argv) {
 	last = std::clock();
@@ -472,6 +486,12 @@ int main(int argc, char **argv) {
 			case 'h':
 				usage(argv[0]);
 				break;
+			case 'i':
+				saveRgbImage = true;
+				break;
+			case 'd':
+				saveDepthImage = true;
+				break;
 			case 'r': //Set framerate
 				if(sscanf(argv[arg+1], "%lf", &FRAMERATE) == EOF ) {
 					printf("Bad framerate given.\n");
@@ -492,13 +512,6 @@ int main(int argc, char **argv) {
 
 	checkRetVal(depth.Create(context));
 	checkRetVal(image.Create(context));
-
-	// if (!play) {
-	// 	mapMode.nXRes = XN_VGA_X_RES;
-	// 	mapMode.nYRes = XN_VGA_Y_RES;
-	// 	mapMode.nFPS = 30;
-	// 	depth.SetMapOutputMode(mapMode);
-	// }
 
 	nRetVal = context.FindExistingNode(XN_NODE_TYPE_USER, userGenerator);
 	if (nRetVal != XN_STATUS_OK)
