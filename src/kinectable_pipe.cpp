@@ -449,16 +449,18 @@ void main_loop() {
 				writeDepth();
 			}
 			printf("{\"status\":\"images saved\", \"elapsed\":%0.3f}\n", clockAsFloat(last));
-			fflush(stdout);
 		}
 		writeSkeleton();
 	}
+	fflush(stdout);
 }
 
 int main(int argc, char **argv) {
 	last = std::clock();
 
 	printf("{\"status\":\"initializing\", \"elapsed\":%0.3f}\n", clockAsFloat(last));
+	fflush(stdout);
+
 	unsigned int arg = 1,
 		require_argument = 0,
 		port_argument = 0;
@@ -530,6 +532,7 @@ int main(int argc, char **argv) {
 	signal(SIGINT, terminate);
 
 	printf("{\"status\":\"seeking_users\", \"elapsed\":%.3f}\n", clockAsFloat(last));
+	fflush(stdout);
 	context.StartGeneratingAll();
 
 	while(true)
